@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Courses</title>
+</head>
+<body>
+    <h1>All Courses</h1>
+    <form action="{{ url_for('view_courses') }}" method="get">
+        <input type="text" name="search_query" placeholder="Search courses...">
+        <button type="submit">Search</button>
+    </form>
+
+    <ul>
+        {% for course in courses %}
+            <li>
+                {{ course.title }} ({{ course.price }})
+                {% if course.id in enrolled_courses %}
+                    <span style="color:green">Enrolled</span>
+                {% else %}
+                    <form action="{{ url_for('enroll', course_id=course.id) }}" method="post">
+                        <button type="submit">Enroll</button>
+                    </form>
+                {% endif %}
+            </li>
+        {% endfor %}
+    </ul>
+    <a href="{{ url_for('home') }}">Home</a>
+</body>
+</html>

@@ -37,12 +37,25 @@ def init_db():
     # Таблица уроков
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS lessons (
+            id INTEGER PRIMARY KEY,
+            name TEXT NOT NULL,
+            course_id INTEGER,
+            teacher_id INTEGER,
+            FOREIGN KEY (course_id) REFERENCES courses (id),
+            FOREIGN KEY (teacher_id) REFERENCES teachers (id)
+        )
+    ''')
+    
+    # Новая таблица для хранения информации о записях на курсы
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS enrollments (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
             course_id INTEGER NOT NULL,
-            title TEXT NOT NULL,
-            description TEXT,
-            broadcast_date TEXT NOT NULL,
-            FOREIGN KEY (course_id) REFERENCES courses (id)''')
+            FOREIGN KEY (user_id) REFERENCES users (id),
+            FOREIGN KEY (course_id) REFERENCES courses (id)
+        )
+    ''')
     
     conn.commit()
     conn.close()
@@ -235,6 +248,61 @@ def course_editor(course_id):
     conn.close()
     
     return render_template('course_editor.html', course_id=course_id, lessons=all_lessons)
+
+@app.route('/courses', methods=['GET'])
+def view_courses():
+    if 'username' not in session:
+        flash('You need to login first!')
+        return redirect(url_for('login'))
+    
+    search_query = request.args.get('search_query', '').strip()
+    
+    conn = sqlite3.connect('users.db')
+    cursor = conn.cursor()
+    
+    # Получаем все курсы
+    if search_query:
+        # Фильтруем курсы по запросу
+        cursor.execute('SELECT * FROM courses WHERE title LIKE ? OR description LIKE ?', ('%' + search_query + '%', '%' + search_query + '%'))
+    else:
+        cursor.execute('SELECT * FROM courses')
+    
+    courses = cursor.fetchall()
+    
+    # Преобразуем результаты в удобный формат
+    courses = [{'id': course[0], 'title': course[1], 'description': course[2], 'price': course[3]} for course in courses]
+    
+    # Получаем информацию о записях текущего пользователя
+    user_id = session['user_id']
+    cursor.execute('SELECT course_id FROM enrollments WHERE user_id = ?', (user_id,))
+    enrolled_courses = [row[0] for row in cursor.fetchall()]
+    
+    conn.close()
+    
+    return render_template('view_courses.html', courses=courses, enrolled_courses=enrolled_courses, search_query=search_query)
+
+@app.route('/enroll/<int:course_id>', methods=['POST'])
+def enroll(course_id):
+    if 'username' not in session:
+        flash('You need to login first!')
+        return redirect(url_for('login'))
+    
+    user_id = session['user_id']
+    
+    conn = sqlite3.connect('users.db')
+    cursor = conn.cursor()
+    
+    # Проверяем, не записан ли уже пользователь на этот курс
+    cursor.execute('SELECT * FROM enrollments WHERE user_id = ? AND course_id = ?', (user_id, course_id))
+    if cursor.fetchone() is not None:
+        flash('You are already enrolled in this course!')
+    else:
+        cursor.execute('INSERT INTO enrollments (user_id, course_id) VALUES (?, ?)', (user_id, course_id))
+        conn.commit()
+        flash('You have successfully enrolled in the course!')
+    
+    conn.close()
+    return redirect(url_for('view_courses'))
 
 if __name__ == '__main__':
     app.run(debug=True)
