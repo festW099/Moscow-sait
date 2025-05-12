@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ course.title }}</title>
+</head>
+<body>
+    <h1>{{ course.title }}</h1>
+    <p>Описание: {{ course.description }}</p>
+    <p>Цена: {{ course.price }}</p>
+
+    <h2>Уроки:</h2>
+    <ul>
+        {% for lesson in lessons %}
+            <li>
+                {{ lesson.name }}
+                <a href="{{ url_for('lesson_details', course_id=course.id, lesson_id=lesson.id) }}">Подробнее</a>
+            </li>
+        {% endfor %}
+    </ul>
+    <a href="{{ url_for('view_courses') }}">Назад к списку курсов</a>
+</body>
+</html>

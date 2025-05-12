@@ -6,6 +6,7 @@ from datetime import datetime
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)  # Генерирует 24 случайных байта
+DATABASE = 'users.db'
 
 # Инициализация базы данных
 def init_db():
@@ -249,38 +250,6 @@ def course_editor(course_id):
     
     return render_template('course_editor.html', course_id=course_id, lessons=all_lessons)
 
-@app.route('/courses', methods=['GET'])
-def view_courses():
-    if 'username' not in session:
-        flash('You need to login first!')
-        return redirect(url_for('login'))
-    
-    search_query = request.args.get('search_query', '').strip()
-    
-    conn = sqlite3.connect('users.db')
-    cursor = conn.cursor()
-    
-    # Получаем все курсы
-    if search_query:
-        # Фильтруем курсы по запросу
-        cursor.execute('SELECT * FROM courses WHERE title LIKE ? OR description LIKE ?', ('%' + search_query + '%', '%' + search_query + '%'))
-    else:
-        cursor.execute('SELECT * FROM courses')
-    
-    courses = cursor.fetchall()
-    
-    # Преобразуем результаты в удобный формат
-    courses = [{'id': course[0], 'title': course[1], 'description': course[2], 'price': course[3]} for course in courses]
-    
-    # Получаем информацию о записях текущего пользователя
-    user_id = session['user_id']
-    cursor.execute('SELECT course_id FROM enrollments WHERE user_id = ?', (user_id,))
-    enrolled_courses = [row[0] for row in cursor.fetchall()]
-    
-    conn.close()
-    
-    return render_template('view_courses.html', courses=courses, enrolled_courses=enrolled_courses, search_query=search_query)
-
 @app.route('/enroll/<int:course_id>', methods=['POST'])
 def enroll(course_id):
     if 'username' not in session:
@@ -303,6 +272,100 @@ def enroll(course_id):
     
     conn.close()
     return redirect(url_for('view_courses'))
+
+# Маршрут для просмотра всех курсов
+@app.route('/courses', methods=['GET'])
+def view_courses():
+    if 'username' not in session:
+        flash('You need to login first!')
+        return redirect(url_for('login'))
+
+    search_query = request.args.get('search_query', '').strip()
+
+    conn = sqlite3.connect(DATABASE)
+    cursor = conn.cursor()
+
+    # Получаем все курсы
+    if search_query:
+        # Фильтруем курсы по запросу
+        cursor.execute('SELECT * FROM courses WHERE title LIKE ? OR description LIKE ?', ('%' + search_query + '%', '%' + search_query + '%'))
+    else:
+        cursor.execute('SELECT * FROM courses')
+
+    courses = cursor.fetchall()
+
+    # Преобразуем результаты в удобный формат
+    courses = [{'id': course[0], 'title': course[1], 'description': course[2], 'price': course[3]} for course in courses]
+
+    # Получаем информацию о записях текущего пользователя
+    user_id = session['user_id']
+    cursor.execute('SELECT course_id FROM enrollments WHERE user_id = ?', (user_id,))
+    enrolled_courses = [row[0] for row in cursor.fetchall()]
+
+    conn.close()
+
+    return render_template('view_courses.html', courses=courses, enrolled_courses=enrolled_courses, search_query=search_query)
+
+# Маршрут для просмотра деталей курса
+@app.route('/courses/<int:course_id>', methods=['GET'])
+def course_details(course_id):
+    conn = sqlite3.connect(DATABASE)
+    cursor = conn.cursor()
+
+    # Получаем детали курса
+    cursor.execute('SELECT * FROM courses WHERE id = ?', (course_id,))
+    course = cursor.fetchone()
+    if not course:
+        flash('Course not found.')
+        return redirect(url_for('view_courses'))
+
+    # Преобразуем результат в удобный формат
+    course = {'id': course[0], 'title': course[1], 'description': course[2], 'price': course[3]}
+
+    # Получаем уроки курса
+    cursor.execute('SELECT * FROM lessons WHERE course_id = ?', (course_id,))
+    lessons = cursor.fetchall()
+
+    # Преобразуем результаты в удобный формат
+    lessons = [{'id': lesson[0], 'name': lesson[1], 'course_id': lesson[2], 'teacher_id': lesson[3]} for lesson in lessons]
+
+    conn.close()
+
+    return render_template('course_details.html', course=course, lessons=lessons)
+
+# Маршрут для просмотра деталей урока
+@app.route('/courses/<int:course_id>/<int:lesson_id>', methods=['GET'])
+def lesson_details(course_id, lesson_id):
+    conn = sqlite3.connect(DATABASE)
+    cursor = conn.cursor()
+
+    # Получаем детали курса
+    cursor.execute('SELECT * FROM courses WHERE id = ?', (course_id,))
+    course = cursor.fetchone()
+    if not course:
+        flash('Course not found.')
+        return redirect(url_for('view_courses'))
+
+    # Получаем детали урока
+    cursor.execute('SELECT * FROM lessons WHERE id = ? AND course_id = ?', (lesson_id, course_id))
+    lesson = cursor.fetchone()
+    if not lesson:
+        flash('Lesson not found.')
+        return redirect(url_for('course_details', course_id=course_id))
+
+    # Преобразуем результаты в удобный формат
+    course = {'id': course[0], 'title': course[1], 'description': course[2], 'price': course[3]}
+    lesson = {'id': lesson[0], 'name': lesson[1], 'course_id': lesson[2], 'teacher_id': lesson[3]}
+
+    conn.close()
+
+    return render_template('lesson_details.html', course=course, lesson=lesson)
+
+# Маршрут для начала трансляции
+@app.route('/courses/<int:course_id>/<int:lesson_id>/stream', methods=['POST'])
+def start_lesson_stream(course_id, lesson_id):
+    # Логика для начала трансляции
+    return redirect(url_for('lesson_details', course_id=course_id, lesson_id=lesson_id))
 
 if __name__ == '__main__':
     app.run(debug=True)

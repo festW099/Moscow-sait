@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ lesson.name }}</title>
+</head>
+<body>
+    <h1>{{ lesson.name }}</h1>
+    <p>Курс: {{ course.title }}</p>
+    <p>Преподаватель: {{ get_teacher_name(lesson.teacher_id) }}</p>
+
+    <!-- Здесь можно добавить форму для просмотра трансляции -->
+    <form action="{{ url_for('start_lesson_stream', course_id=course.id, lesson_id=lesson.id) }}" method="post">
+        <button type="submit">Посмотреть трансляцию</button>
+    </form>
+
+    <a href="{{ url_for('course_details', course_id=course.id) }}">Назад к курсу</a>
+</body>
+</html>
