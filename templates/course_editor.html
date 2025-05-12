@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Course Editor</title>
+</head>
+<body>
+    <h1>Course Editor</h1>
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            <ul>
+                {% for message in messages %}
+                    <li>{{ message }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    {% endwith %}
+    
+    <h2>Add New Lesson</h2>
+    <form method="POST" action="{{ url_for('course_editor', course_id=course_id) }}">
+        <label for="title">Lesson Title:</label>
+        <input type="text" id="title" name="title" required><br>
+        
+        <label for="description">Description:</label>
+        <textarea id="description" name="description"></textarea><br>
+        
+        <label for="broadcast_date">Broadcast Date:</label>
+        <input type="datetime-local" id="broadcast_date" name="broadcast_date" required><br>
+        
+        <button type="submit">Add Lesson</button>
+    </form>
+    
+    <h2>Lessons</h2>
+    {% if lessons %}
+        <ul>
+            {% for lesson in lessons %}
+                <li>
+                    <strong>{{ lesson.title }}</strong><br>
+                    {{ lesson.description }}<br>
+                    Broadcast: {{ lesson.broadcast_date }}
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>No lessons added yet.</p>
+    {% endif %}
+    
+    <a href="{{ url_for('home') }}">Back to Home</a>
+</body>
+</html>
